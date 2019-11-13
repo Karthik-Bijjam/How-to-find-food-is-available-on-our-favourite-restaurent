@@ -1,0 +1,50 @@
+window.addEventListener('load', function(){
+  //console.log('loading gliders');
+  jQuery('.glider').removeClass('hidden');
+  jQuery('.glider-featured').slick({
+    dots: true,
+    arrows:false,
+    infinite: true,
+    slidesToShow: 4,
+    slidesToScroll: 4,
+    autoplay: true,
+    autoplaySpeed: 10000,
+    responsive: [
+    {
+      breakpoint: 790,
+      settings: {
+        slidesToShow: 3,
+        slidesToScroll: 3
+      }
+    },
+    {
+      breakpoint: 480,
+      settings: {
+        slidesToShow: 2,
+        slidesToScroll: 2
+      }
+    }
+  ]
+  });
+  jQuery('.glider-testimonials').slick({
+    dots: true,
+    arrows:false,
+    infinite: true,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 10000
+  });
+});
+if (jQuery('.glider-top'))
+{
+  jQuery('.glider-top').slick({
+    dots: true,
+    arrows:false,
+    infinite: true,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 10000
+  });
+}

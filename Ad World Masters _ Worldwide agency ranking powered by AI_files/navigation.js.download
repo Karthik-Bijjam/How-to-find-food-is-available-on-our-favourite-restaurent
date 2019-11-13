@@ -1,0 +1,40 @@
+//slide menu
+function showMainMenu(elem)
+{
+  if (typeof elem == 'string') {
+    elem = document.getElementById(elem);
+  }
+  
+  var mnu = document.getElementById("main-menu"); //actual menu container, not the button
+  if (!mnu || typeof(mnu) == "undefined")
+  {
+    console.log('mnu undifined');
+    return;
+  }
+  if (elem.className.indexOf('open') === -1)
+  {
+    if (document.body.className.indexOf('has-active-menu') === -1)
+    {
+      document.body.className += ' has-active-menu';
+    }
+    if (mnu.className.indexOf('open') === -1)
+    {
+      mnu.className += ' open';
+    }
+    elem.className += ' open';
+    clickMaskShow();
+  }
+  else
+  {
+    elem.className = elem.className.replace(/\s+open/g,'');
+    if (mnu.className.indexOf('open') !== -1)
+    {
+      mnu.className = mnu.className.replace(/\s+open/g,'');
+    }
+    if (document.body.className.indexOf('has-active-menu') !== -1)
+    {
+      document.body.className = document.body.className.replace(/\s+has-active-menu/g,'');
+    }
+    clickMaskHide();
+  }
+}

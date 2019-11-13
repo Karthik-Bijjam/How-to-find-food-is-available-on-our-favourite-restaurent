@@ -1,0 +1,563 @@
+function validateUserField(curField, arrayItemId, bIsImage, iUserId, imgElemId, imgNameElemId, sImgPrefix)
+{
+  var formData, processData, contentType, imgElem, elemLoading;
+  elemLoading = null;
+  if (bIsImage)
+  {
+    //check if HTML5 ajax upload is supported
+    if (typeof window.FormData === 'undefined') { return; }
+    formData = new FormData();
+    formData.append('validate_only', true); //just process ajax validation, withou any action like adding to DB or sending emails
+    formData.append('user_id', iUserId);
+    formData.append('action', 'profile_validate_field');
+    formData.append('itemId', arrayItemId);
+    formData.append('is_img', true);
+    formData.append('img_prefix', sImgPrefix);
+    formData.append(curField.getAttribute("name"), curField.files[0]);
+    formData.append(curField.getAttribute("name"), '');
+    processData = false; // tell jQuery not to process the data
+    contentType = false; // tell jQuery not to set contentType
+    imgElem = document.getElementById(imgElemId);
+    if (imgElem && typeof imgElem != "undefined")
+    {
+      elemLoading = getChild(imgElem.parentNode,'loading');
+      if (elemLoading && elemLoading.className.indexOf('hidden') !== -1)
+      {
+        elemLoading.className = elemLoading.className.replace(/\s*hidden/g,'');
+      }
+    }
+  }
+  else
+  {
+    formData = {};
+    formData['validate_only'] = true; //just process ajax validation, withou any action like adding to DB or sending emails
+    formData['user_id' ] = iUserId;
+    formData['action'] = 'profile_validate_field';
+    formData[curField.getAttribute("name")] = curField.value;
+    formData['itemId'] = arrayItemId;
+    //console.log(formData);
+    //formData = JSON.stringify(formData);
+    //console.log(formData);
+
+    processData = true;
+    contentType = 'application/x-www-form-urlencoded';
+  }
+
+  jQuery.ajax({
+    type : "post",
+    dataType: 'json',  // what to expect back from the PHP script, if anything
+    data : formData,
+    cache: false,
+    processData: processData,
+    contentType: contentType,
+    url : sAjaxURL,
+    success: function(response)
+    {
+      if (response && response.type)
+      {
+        if (response.type == "success")
+        {
+          toggleErrorField(curField,false);
+          if (bIsImage)
+          {
+            //console.log(imgElemId);
+            //imgElem = document.getElementById(imgElemId);
+            //if (imgElem && typeof imgElem != "undefined" && response.image_path)
+            if (response.image_path)
+            {
+              var timeStamp = Math.floor(Date.now() / 1000);
+              imgElem.src = response.image_path+'?'+timeStamp;
+              if (imgElem.parentNode.className.indexOf('hidden') !== -1)
+              {
+                imgElem.parentNode.className = imgElem.parentNode.className.replace(/\s*hidden/g,'');
+              }
+
+              //clear the old FILE so it's not submitted again
+              var $curField = jQuery(curField);
+              $curField.wrap('<form>').closest('form').get(0).reset();
+              $curField.unwrap();
+            }
+            imgNameElem = document.getElementById(imgNameElemId);
+            if (imgNameElem && typeof imgNameElem != "undefined" && response.image_name)
+            {
+              imgNameElem.value = response.image_name;
+            }
+            if (elemLoading && elemLoading.className.indexOf('hidden') === -1)
+            {
+              elemLoading.className += ' hidden';
+            }
+          }
+        }
+        else if (response.type == "failure")
+        {
+          var msgError = getSibling(curField, 'msg-error', true);
+          if (msgError && response.error)
+          {
+            msgError.innerHTML = response.error;
+          }
+          if (bIsImage)
+          {
+            //clear the old FILE so it's not submitted again
+            var $curField = jQuery(curField);
+            $curField.wrap('<form>').closest('form').get(0).reset();
+            $curField.unwrap();
+            if (elemLoading && elemLoading.className.indexOf('hidden') === -1)
+            {
+              elemLoading.className += ' hidden';
+            }
+          }
+          toggleErrorField(curField,true);
+        }
+      }
+      else
+      {
+        console.log('Error trying to validate field. Check response.');
+      }
+    },
+    error: function(jqXHR, exception) {
+      //console.log(jqXHR);
+      //console.log(exception);
+      if (jqXHR.status === 0) {
+          console.log('Not connect.\n Verify Network.');
+      } else if (jqXHR.status == 404) {
+          console.log('Requested page not found. [404]');
+      } else if (jqXHR.status == 500) {
+          console.log('Internal Server Error [500].');
+      } else if (exception === 'parsererror') {
+          console.log('Requested JSON parse failed.');
+      } else if (exception === 'timeout') {
+          console.log('Time out error.');
+      } else if (exception === 'abort') {
+          console.log('Ajax request aborted.');
+      } else {
+          console.log('Uncaught Error.\n' + jqXHR.responseText);
+      }
+    }
+  });
+}
+function scrollItem(elem,agencyId,otherScrollId,bNextItem)
+{
+  if (!elem || typeof elem == "undefined") {return;}
+  var leftCol = getParent(elem,'section-agencies section-col-left');
+  if (leftCol)
+  {
+    leftCol.className += ' hidden';
+    var rightCol = getSibling(leftCol,'section-col-right',true);
+    if (rightCol && (rightCol.getAttribute('data-aid') == agencyId))
+    {
+      //console.log('agencyId: '+agencyId+', '+rightCol.getAttribute('data-aid'));
+      rightCol.className += ' hidden';
+    }
+  }
+  var siblingLeftCol = getSibling(leftCol, 'section-agencies section-col-left',bNextItem);
+  if (siblingLeftCol)
+  {
+    //console.log(siblingLeftCol);
+    siblingLeftCol.className = siblingLeftCol.className.replace(/\s?hidden/g,'');
+    var siblingRightCol = getSibling(siblingLeftCol,'section-col-right',true);
+    if (siblingRightCol && (siblingRightCol.getAttribute('data-aid') == siblingLeftCol.getAttribute('data-aid')))
+    {
+      siblingRightCol.className = siblingRightCol.className.replace(/\s?hidden/g,'');
+    }
+    //unhide other scroll if hidden
+    var elemOtherScroll = document.getElementById(otherScrollId);
+    if (elemOtherScroll && typeof elemOtherScroll != "undefined" && elemOtherScroll.className.indexOf('hidden') !== -1)
+    {
+      elemOtherScroll.className = elemOtherScroll.className.replace(/\s?hidden/g,'');
+    }
+  }
+  else
+  {
+    elem.className += ' hidden';
+  }
+}
+
+function toggleUserInputs(elem, sUpdateValue)
+{
+  if (!elem || typeof elem == "undefined") { return; }
+  var arValue = elem.parentNode.getElementsByClassName('cell-value');
+  if (arValue && typeof arValue != "undefined" && arValue.length>0)
+  {
+    var bHideInputs = false;
+    if (arValue[0] && arValue[0].className.indexOf('hidden') === -1)
+    {
+      arValue[0].className += ' hidden';
+      if (elem.className.indexOf('hidden') === -1)
+      {
+        elem.className += ' hidden';
+      }
+      bHideInputs = false;
+    }
+    else
+    {
+      //console.log('show inputs, '+elem.className);
+      arValue[0].className = arValue[0].className.replace(/\s?hidden/g,'');
+      if (elem.className.indexOf('hidden') !== -1)
+      {
+        elem.className = elem.className.replace(/\s?hidden/g,'');;
+      }
+      bHideInputs = true;
+      if (sUpdateValue != null)
+      {
+        arValue[0].innerHTML = sUpdateValue;
+      }
+    }
+
+    var arInputs = elem.parentNode.getElementsByTagName('input');
+    if (arInputs && arInputs.length > 0)
+    {
+      for(var i=0; i<arInputs.length; i++)
+      {
+        if (bHideInputs)
+        {
+          if (arInputs[i] && arInputs[i].className.indexOf('hidden') === -1)
+          {
+            arInputs[i].className += ' hidden';
+          }
+        }
+        else
+        {
+          if (arInputs[i] && arInputs[i].className.indexOf('hidden') !== -1)
+          {
+            arInputs[i].className = arInputs[i].className.replace(/\s?hidden/g,'');
+          }
+        }
+      }
+    }
+    if (bHideInputs)
+    {
+      var arValue = elem.parentNode.getElementsByClassName('search-tip');
+      if (arValue && typeof arValue != "undefined" && arValue.length>0)
+      {
+        arValue[0].style.display="none";
+      }
+    }
+  }
+}
+
+function updateUserProfile(target,target2Id) {
+  if (!target || (target.className.indexOf('hidden') !== -1))
+  {
+    //console.log('hidden');
+    return;
+  }
+  var arData = {action: 'update_user_profile', fieldName: target.name, fieldValue: target.value};
+  if (!target2Id || typeof target2Id == "undefined") { target2Id = null;}
+  var target2 = null;
+  if (target2Id)
+  {
+    target2 = document.getElementById(target2Id);
+    if (target2 && typeof target2 != "undefined")
+    {
+      arData.fieldName2 = target2.name;
+      arData.fieldValue2 = target2.value;
+    }
+  }
+
+  jQuery.ajax({
+    type : "post",
+    dataType : "json",
+    url : sAjaxURL,
+    data : arData,
+    success: function(response)
+    {
+      //console.log(response);
+      //debugger;
+      var errElem, errElem2;
+      errElem = document.getElementById('error-' + target.id);
+      errElem2 = null;
+      if (target2)
+      {
+        errElem2 = document.getElementById('error-' + target2.id);
+      }
+      if(response && response.type == "success")
+      {
+        //toggleReadonly('edit-' + target.id, target.id);
+        toggleErrorField(errElem, false);
+        if (target2)
+        {
+          //toggleReadonly('edit-' + target2.id, target2.id);
+          toggleErrorField(errElem2, false);
+        }
+        //show success message
+        var row = getParent(target,'row');
+        if (row)
+        {
+          var msgSuccess = getChild(row,'msg-success');
+          if (msgSuccess)
+          {
+            if (msgSuccess.className.indexOf('hidden') !== -1)
+            {
+              msgSuccess.className = msgSuccess.className.replace(/\s?hidden/g,'');
+            }
+
+            var editElem = getChild(row,'edit-elem');
+            if (editElem)
+            {
+              var sResVal = response.value;
+              var sRelatedElem = target.getAttribute('data-related');
+              if (sRelatedElem && typeof sRelatedElem != "undefined")
+              {
+                var relElem = document.getElementById(sRelatedElem);
+                if (relElem && typeof relElem != "undefined" && target2 && typeof target2 != "undefined")
+                {
+                  sResVal = target2.value +', '+relElem.value;
+                }
+              }
+              toggleUserInputs(editElem, sResVal);
+            }
+
+            setTimeout(function(){
+              if (msgSuccess.className.indexOf('hidden') === -1)
+              {
+                msgSuccess.className += ' hidden';
+              }
+            },600);
+          }
+        }
+      }
+      else
+      {
+        errElem.innerHTML = response.error;
+        toggleErrorField(errElem, true);
+        if (target2)
+        {
+          //toggleReadonly('edit-' + target2.id, target2.id);
+          toggleErrorField(errElem2, false);
+        }
+      }
+    },
+    error: handleAjaxErr
+  });
+}
+
+function validateField(elem, type) {
+  if (!(elem instanceof Element)) {
+    elem = document.getElementById(elem);
+  }
+
+  value = elem.value;
+
+  if (type === 'required') {
+    emptyRegexp = /[^\\s]+/i;
+    match = emptyRegexp.exec(value);
+    return match;
+  } else if (type === 'email') {
+    emailRegexp = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}$/i
+    match = emailRegexp.exec(value);
+    //console.log(match);
+    return match;
+  } else {
+    return true;
+  }
+}
+
+function validateAndDisplay(elem, type) {
+  toggleErrorField(elem, !validateField(elem, type));
+}
+
+function agencyActionChange(elem, inputsDivId) {
+  if (elem.value === 'new_admin')
+    jQuery('#' + inputsDivId).removeClass('hidden');
+  else
+    jQuery('#' + inputsDivId).addClass('hidden');
+
+}
+
+function validateUserAgencyForm()
+{
+  jQuery('.agency-new-admin:not(.hidden) input').filter(function(index, element) {
+    element.onblur();
+  });
+  errorFields = jQuery('.agency-new-admin:not(.hidden) .has-error');
+  return errorFields.length === 0;
+}
+
+function toggleOpenCellItem(elem, sParentClass)
+{
+  if (!elem || typeof elem == "undefined") { return; }
+
+  var wrapperElem = getParent(elem,sParentClass);
+
+  if (wrapperElem.className.indexOf('open') !== -1)
+  {
+    wrapperElem.className = wrapperElem.className.replace(/\s?open/g,'');
+  }
+  else
+  {
+    wrapperElem.className += ' open';
+  }
+}
+
+function editShortList(anchorElem, formId) {
+  if (!anchorElem) { return; }
+  hideElement(anchorElem);
+  var listItem = getParent(anchorElem, 'list-item');
+  if (listItem)
+  {
+    var itemName = getChildInTree(listItem, 'item-name');
+    if (itemName)
+    {
+      hideElement(itemName);
+    }
+  }
+  showElement(formId);
+}
+
+function toggleExpandClose(itemMenuId)
+{
+  var itemMenu = document.getElementById(itemMenuId);
+  if (!itemMenu || typeof itemMenu == "undefined") { return; }
+  var listItem = getParent(itemMenu,'list-item');
+  if (listItem)
+  {
+    var openBtn = getChild(listItem,'item-expand');
+    if (openBtn) { toggleHidden(openBtn);}
+
+    var closeBtn = getChild(listItem,'item-close');
+    if (closeBtn) { toggleHidden(closeBtn);}
+  }
+  toggleHidden(itemMenu);
+}
+
+function toggleDescriptionForm(elem,sParentClass)
+{
+  if (!elem || typeof elem == "undefined") { return; }
+  var sectionElem = getParent(elem,sParentClass);
+  if (sectionElem)
+  {
+    var descElem = getChildInTree(sectionElem,'description');
+    if (descElem)
+    {
+      toggleHidden(descElem);
+      var formElem = getChildInTree(sectionElem,'description-form');
+      if (formElem) { toggleHidden(formElem);}
+    }
+  }
+}
+
+var bSearchingUsers = false;
+function searchUser(srcId, destId, resultsElemId,parentRowClass, userDataWrapperClass, userDataClass)
+{
+  var elemSrc = document.getElementById(srcId);
+  var elemResults = document.getElementById(resultsElemId);
+  if (bSearchingUsers
+      || !elemResults || typeof elemResults == "undefined"
+      || !elemSrc || typeof elemSrc == "undefined" || elemSrc.value=='' || elemSrc.value.length < 3)
+  {
+    return;
+  }
+
+  bSearchingUsers = true;
+
+  elemResults.innerHTML = '';
+  elemResults.style.display = 'none';
+  elemSrc.disabled = true;
+
+  jQuery.ajax({
+    url : sAjaxURL,
+    type : "post",
+    dataType: 'json',  // what to expect back from the PHP script, if anything
+    data : {action: 'search_user', search_val: elemSrc.value},
+    success: function(response)
+    {
+      if (response && response.type)
+      {
+        if (response.type == "success")
+        {
+          if (response.users_list && typeof response.users_list != "undefined")
+          {
+            var sHTML = '';
+            for(var i=0; i<response.users_list.length; i++)
+            {
+              var sUserImg = '';
+              if (response.users_list[i].img != '')
+                sUserImg = response.users_list[i].img;
+              response.users_list[i].user_login = addSlashes(response.users_list[i].user_login);
+              response.users_list[i].first_name = addSlashes(response.users_list[i].first_name);
+              response.users_list[i].last_name  = addSlashes(response.users_list[i].last_name);
+              var sUserName = (response.users_list[i].first_name+' '+response.users_list[i].last_name).trim();
+              sHTML += '<div class="row" onClick="setSelectedUser(this,\''+srcId+'\','+response.users_list[i].id+', \''+sUserImg+'\',\''+response.users_list[i].user_login+'\',\''+sUserName+'\',\''+destId+'\',\''+parentRowClass+'\',\''+userDataWrapperClass+'\',\''+userDataClass+'\')">';
+              sHTML += response.users_list[i].user_login+' '+sUserName;
+              sHTML += '</div>';
+            }
+            elemResults.innerHTML = sHTML;
+            elemResults.style.display = 'block';
+          }
+        }
+        else if (response.type == "failure")
+        {
+          if (response.error)
+          {
+            elemResults.innerHTML = response.error;
+          }
+          else
+          {
+            elemResults.innerHTML = 'Error occurred.';
+          }
+        }
+      }
+      else
+      {
+        console.log('Error trying to search for users. Check response.');
+      }
+      bSearchingUsers = false;
+      elemSrc.disabled = false;
+    },
+    error: function(jqXHR, exception) {
+      bSearchingUsers = false;
+      elemSrc.disabled = false;
+      //console.log(jqXHR);
+      //console.log(exception);
+      if (jqXHR.status === 0) {
+          console.log('Not connect.\n Verify Network.');
+      } else if (jqXHR.status == 404) {
+          console.log('Requested page not found. [404]');
+      } else if (jqXHR.status == 500) {
+          console.log('Internal Server Error [500].');
+      } else if (exception === 'parsererror') {
+          console.log('Requested JSON parse failed.');
+      } else if (exception === 'timeout') {
+          console.log('Time out error.');
+      } else if (exception === 'abort') {
+          console.log('Ajax request aborted.');
+      } else {
+          console.log('Uncaught Error.\n' + jqXHR.responseText);
+      }
+    }
+  });
+}
+
+function setSelectedUser(elem, srcId, idUser, sUserImg, sUserEmail, sUserName, destElemId, parentRowClass, userDataWrapperClass, userDataClass)
+{
+  var destElem = document.getElementById(destElemId);
+  if (!destElem || typeof destElem == "undefined") { console.log('error destElem in setSelectedUser'); return; }
+  destElem.value = idUser;
+
+  //find parent with testimonial-row class
+  var parentRow = getParent(elem,parentRowClass);
+  if (!parentRow || typeof parentRow == "undefined") { console.log('error destElem in setSelectedUser'); return; }
+
+  var userDataWrapper = getChildInTree(parentRow,userDataWrapperClass);
+  if (!userDataWrapper || typeof userDataWrapper == "undefined") { console.log('error userDataWrapper in setSelectedUser'); return; }
+  hideElement(userDataWrapper);
+
+  //get child user-data
+  var userData = getChildInTree(parentRow,userDataClass);
+  if (!userData || typeof userData == "undefined") { console.log('error userData in setSelectedUser'); return; }
+  //set user data: id, name, e-mail, image
+  var sHTML = '';
+  if (sUserImg != '')
+    sHTML += '<img src="'+sUserImg+'" align="left">';
+  sHTML += 'Selected user: [ID: '+idUser+']<br>'+sUserName+'<br>'+sUserEmail;
+  userData.innerHTML = sHTML;
+  //show user-data-wrapper
+  showElement(userDataWrapper);
+
+  //clear search field
+  elem.parentNode.style.display = 'none';
+  elem.parentNode.innerHTML = '';
+  var elemSrc = document.getElementById(srcId);
+  if (!elemSrc || typeof elemSrc == "undefined") { console.log('error elemSrc in setSelectedUser'); return; }
+  elemSrc.value='';
+}
